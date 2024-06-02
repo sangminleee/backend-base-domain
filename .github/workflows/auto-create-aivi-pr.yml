@@ -1,0 +1,119 @@
+name: Check and Create PR
+
+on:
+  pull_request:
+    types: [ closed ]
+
+jobs:
+  check-label-and-create-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check if PR was merged and has 'aivi' label and targets 'develop' branch
+        id: check_pr
+        run: |
+          if [ "${{ github.event.pull_request.merged }}" != "true" ]; then
+            echo "PR was not merged. Exiting."
+            echo "::set-output name=continue::false"
+            exit 0
+          fi
+
+          if [ "${{ github.event.pull_request.base.ref }}" != "develop" ]; then
+            echo "PR base branch is not 'develop'. Exiting."
+            echo "::set-output name=continue::false"
+            exit 0
+          fi
+
+          LABELS=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+                        https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels \
+                        | jq -r '.[].name')
+
+          echo "PR labels: $LABELS"
+
+          if [[ "$LABELS" != *"aivi"* ]]; then
+            echo "PR does not have 'aivi' label. Exiting."
+            echo "::set-output name=continue::false"
+            exit 0
+          fi
+
+          echo "PR has 'aivi' label and targets 'develop' branch. Proceeding to create a new PR."
+          echo "::set-output name=continue::true"
+
+      - name: Create a new PR to aivi branch
+        if: steps.check_pr.outputs.continue == 'true'
+        id: create_pr
+        run: |
+          BRANCH_NAME=${{ github.event.pull_request.head.ref }}
+          PR_TITLE="Merge $BRANCH_NAME into aivi"
+          PR_BODY="This PR was automatically created to merge $BRANCH_NAME into the aivi branch."
+
+          # JSON body 값을 변수에 저장
+          JSON_BODY=$(cat <<EOF
+          {
+            "title": "$PR_TITLE",
+            "head": "$BRANCH_NAME",
+            "base": "aivi",
+            "body": "$PR_BODY"
+          }
+          EOF
+          )
+
+          # JSON body 값 출력
+          echo "JSON Body: $JSON_BODY"
+
+          RESPONSE=$(curl -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/${{ github.repository }}/pulls \
+            -d "$JSON_BODY")
+
+          # PR 번호 추출
+          PR_NUMBER=$(echo $RESPONSE | jq -r '.number')
+          echo "Created PR Number: $PR_NUMBER"
+          echo "::set-output name=pr_number::$PR_NUMBER"
+
+      - name: Wait and Check if PR Exists
+        if: steps.check_pr.outputs.continue == 'true'
+        id: wait_and_check
+        run: |
+          PR_NUMBER=${{ steps.create_pr.outputs.pr_number }}
+          MAX_ATTEMPTS=10
+          COUNT=0
+          while [ $COUNT -lt $MAX_ATTEMPTS ]; do
+            PR_CHECK_RESPONSE=$(curl -L \
+              -X GET \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER)
+
+            PR_EXISTS=$(echo $PR_CHECK_RESPONSE | jq -r '.number != null')
+
+            if [ "$PR_EXISTS" == "true" ]; then
+              echo "PR $PR_NUMBER exists. Proceeding to merge."
+              break
+            fi
+
+            echo "PR $PR_NUMBER does not exist yet. Waiting for 1 second..."
+            sleep 1
+            COUNT=$((COUNT + 1))
+          done
+
+          if [ "$PR_EXISTS" != "true" ]; then
+            echo "PR $PR_NUMBER did not appear after 10 attempts. Exiting."
+            exit 1
+          fi
+
+      - name: Merge the new PR
+        if: steps.check_pr.outputs.continue == 'true'
+        run: |
+          PR_NUMBER=${{ steps.create_pr.outputs.pr_number }}
+          curl -L \
+            -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge \
+            -d '{"merge_method":"merge"}'
