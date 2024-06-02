@@ -1,3 +1,3 @@
 fun main() {
-    println("실행 완료5")
+    println("실행 완료6")
 }
