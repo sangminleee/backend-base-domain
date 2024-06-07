@@ -1,0 +1,20 @@
+name: AutoLabeler For Project
+on:
+  pull_request:
+    types: [ opened, edited ]
+    branches: [ aivi ]
+
+jobs:
+  autolabeler-develop:
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 5
+
+    steps:
+      - name: Auto Labeler
+        uses: release-drafter/release-drafter@v5
+        with:
+          disable-autolabeler: false
+          config-name: release-drafter-configs/create-draft-project.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
