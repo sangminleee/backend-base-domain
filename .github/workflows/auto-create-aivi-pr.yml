@@ -36,21 +36,23 @@ jobs:
             exit 0
           fi
 
+          PR_TITLE="${{ github.event.pull_request.title }}"
           echo "PR has 'aivi' label and targets 'develop' branch. Proceeding to create a new PR."
           echo "::set-output name=continue::true"
+          echo "::set-output name=pr_title::$PR_TITLE"
 
       - name: Create a new PR to aivi branch
         if: steps.check_pr.outputs.continue == 'true'
         id: create_pr
         run: |
-          BRANCH_NAME=${{ github.event.pull_request.head.ref }}
-          PR_TITLE="Merge $BRANCH_NAME into aivi"
+          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+          PR_TITLE="${{ steps.check_pr.outputs.pr_title }}"
           PR_BODY="This PR was automatically created to merge $BRANCH_NAME into the aivi branch."
 
           # JSON body 값을 변수에 저장
           JSON_BODY=$(cat <<EOF
           {
-            "title": "$PR_TITLE",
+            "title": "[AIVI] $PR_TITLE",
             "head": "$BRANCH_NAME",
             "base": "aivi",
             "body": "$PR_BODY"

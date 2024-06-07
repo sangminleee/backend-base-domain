@@ -1,0 +1,30 @@
+name-template: '$RESOLVED_VERSION'
+tag-template: '$RESOLVED_VERSION'
+categories:
+  - title: 'Changes'
+    label: 'merge-aivi'
+autolabeler:
+  - label: 'merge-aivi'
+    title:
+      - '/\[AIVI\].+/'
+change-title-escapes: '\<*_&'
+include-labels:
+  - 'merge-aivi'
+exclude-labels:
+  - 'released'
+  - 'hot'
+  - 'fix'
+  - 'aivi'
+  - 'bug'
+  - 'refactor'
+  - 'chore'
+  - 'documentation'
+  - 'style'
+  - 'dependencies'
+  - 'work in progress'
+  - 'follow up'
+change-template: '- $TITLE (#$NUMBER)'
+commitish: aivi
+filter-by-commitish: true
+template: |
+  $CHANGES
