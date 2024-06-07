@@ -7,7 +7,7 @@ env:
   CONTAINER_CONTEXT_PATH: "docker"
   DOCKERFILE_PATH: "docker/Dockerfile"
   CONTAINER_REGISTRY_URL: "nalsm0801"
-  DOCKER_IMAGE_PATH: "ovision-server"
+  DOCKER_IMAGE_PATH: "backend-base-domain"
 
 permissions:
   contents: read
