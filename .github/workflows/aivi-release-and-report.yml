@@ -16,7 +16,6 @@ jobs:
   check-prs:
     runs-on: ubuntu-latest
     outputs:
-      is_empty: ${{ steps.tag_prs.outputs.is_empty }}
       pr_numbers: ${{ steps.tag_prs.outputs.pr_numbers }}
 
     steps:
@@ -30,10 +29,8 @@ jobs:
           echo "pr_numbers=$pr_numbers_var"
           if [ -z "$pr_numbers_var" ]; then
             echo "No PRs to tag."
-            echo "is_empty=true" >> "$GITHUB_OUTPUT"
           else
             echo "PRs to be tagged as released found."
-            echo "is_empty=false" >> "$GITHUB_OUTPUT"
             echo "pr_numbers=$pr_numbers_var" >> "$GITHUB_OUTPUT"
           fi
         env:
@@ -45,7 +42,6 @@ jobs:
       pull-requests: write
     needs: check-prs
     runs-on: ubuntu-latest
-    if: needs.check-prs.outputs.is_empty == 'false'
     outputs:
       tag: ${{ steps.version.outputs.tag }}
 
@@ -74,7 +70,6 @@ jobs:
   build-and-deploy:
     needs: release-drafter
     runs-on: ubuntu-latest
-    if: needs.check-prs.outputs.is_empty == 'false'
 
     steps:
       - name: Checkout repository
@@ -105,7 +100,6 @@ jobs:
   tag-as-released:
     needs: [ release-drafter, build-and-deploy, check-prs ]
     runs-on: ubuntu-latest
-    if: needs.check-prs.outputs.is_empty == 'false'
 
     steps:
       - name: Checkout repository
